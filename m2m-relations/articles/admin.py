@@ -1,40 +1,36 @@
+from .models import Article, Relationship, Tag
+
 from django.contrib import admin
-from .models import Article, Tag, ArticleScope
-from django.forms import BaseInlineFormSet, ValidationError
+from django.core.exceptions import ValidationError
+from django.forms import BaseInlineFormSet
 
 
 class RelationshipInlineFormset(BaseInlineFormSet):
     def clean(self):
-        main_category = 0
-        categories = []
+        counter = 0
         for form in self.forms:
-            if form.cleaned_data.get('tag'):
-                if form.cleaned_data.get('tag').name in categories:
-                    raise ValidationError('Категории дублируются')
-                else:
-                    categories.append(form.cleaned_data.get('tag').name)
-            if form.cleaned_data.get('is_main'):
-                main_category += 1
-
-        if main_category > 1:
-            raise ValidationError('Выберите только 1 основную категорию')
-        elif main_category == 0:
-            raise ValidationError('Выберите основную категорию')
+            for key, value in form.cleaned_data.items():
+                if key == 'is_main' and value is True:
+                    counter += 1
+        if counter > 1:
+            raise ValidationError('Основной раздел может быть только один.')
 
         return super().clean()
 
 
-class ScopeInline(admin.TabularInline):
-    model = ArticleScope
+class RelationshipInline(admin.TabularInline):
+    model = Relationship
     formset = RelationshipInlineFormset
-
-
-@admin.register(Tag)
-class ScopeAdmin(admin.ModelAdmin):
-    pass
 
 
 @admin.register(Article)
 class ArticleAdmin(admin.ModelAdmin):
+    inlines = [RelationshipInline]
+    list_display = ('id', 'title', 'text', 'published_at', 'image')
+    list_display_links = ('id', 'title')
+    search_fields = ('title', 'text')
+
+
+@admin.register(Tag)
+class TagAdmin(admin.ModelAdmin):
     pass
-    inlines = [ScopeInline]
